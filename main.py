@@ -1,14 +1,23 @@
 import telebot
+import os
+from flask import Flask
+from threading import Thread
 from telebot.types import ReplyKeyboardMarkup, KeyboardButton
 
-# BotFather'dan olingan tokeningizni bu yerga qo'ying
-TOKEN = '8769170916:AAGFbaBITvPCHzb3b71UAZJf0QsTniwqzBU'
-bot = telebot.TeleBot(TOKEN)
+# Render uchun soxta server
+app = Flask('')
+@app.route('/')
+def home():
+    return "Bot ishlayapti!"
 
-# Sizning Telegram ID raqamingiz (Ega/Admin)
+def run():
+    app.run(host='0.0.0.0', port=int(os.environ.get('PORT', 8080)))
+
+# Bot sozlamalari
+TOKEN = '8769170916:AAGFbaBiTVPCHzb3b71UAZJf0QsTniwqzBU'
+bot = telebot.TeleBot(TOKEN)
 ADMIN_ID = 6958856545  
 
-# FT202A guruhidagi 14 ta talaba ro'yxati
 TALABALAR = {
     6958856545: "Xolbo'tayev Sherdor",
     5419668423: "Begimqulov Birodar",
@@ -26,52 +35,41 @@ TALABALAR = {
     1729555343: "Muhammadjonova Shaxnoza"
 }
 
-# Kunlik yo'qlamani saqlash uchun lug'at
 yoqlama_bazasi = {}
 
 @bot.message_handler(commands=['start'])
 def start_command(message):
     user_id = message.from_user.id
-    
-    # 1. ADMIN UCHUN (EGA)
     if user_id == ADMIN_ID:
         markup = ReplyKeyboardMarkup(resize_keyboard=True)
         markup.add(KeyboardButton("📊 Bugungi hisobot"))
-        # Admin ham talaba bo'lgani uchun yo'qlama tugmalarini ham qo'shamiz
         markup.add(KeyboardButton("🏃 Yo'ldaman"), KeyboardButton("🎓 Universitetdaman"))
         markup.add(KeyboardButton("❌ Darsga bormayman"))
-        bot.send_message(user_id, "Xush kelibsiz, Sherdor! Bot nazorati sizda.", reply_markup=markup)
-        
-    # 2. RO'YXATDAGI TALABALAR UCHUN
+        bot.send_message(user_id, "Xush kelibsiz, Sherdor!", reply_markup=markup)
     elif user_id in TALABALAR:
         markup = ReplyKeyboardMarkup(resize_keyboard=True)
-        markup.add(KeyboardButton("🏃 Yo'ldaman"), KeyboardButton("🎓 Universitetdaman"))
-        markup.add(KeyboardButton("❌ Darsga bormayman"))
-        bot.send_message(user_id, f"Salom {TALABALAR[user_id]}! Bugungi holatingizni belgilang:", reply_markup=markup)
-        
-    # 3. BEGONA FOYDALANUVCHILAR UCHUN
+        markup.add(KeyboardButton("🏃 Yo'ldaman"), KeyboardButton("🎓 Universitetdaman"), KeyboardButton("❌ Darsga bormayman"))
+        bot.send_message(user_id, f"Salom {TALABALAR[user_id]}! Holatni tanlang:", reply_markup=markup)
     else:
-        bot.send_message(user_id, "Kechirasiz, siz ushbu guruh ro'yxatida yo'qsiz.")
+        bot.send_message(user_id, "Siz ro'yxatda yo'qsiz.")
 
 @bot.message_handler(func=lambda message: message.text in ["🏃 Yo'ldaman", "🎓 Universitetdaman", "❌ Darsga bormayman"])
-def holatni_qabul_qilish(message):
-    user_id = message.from_user.id
-    if user_id in TALABALAR:
-        yoqlama_bazasi[user_id] = message.text
-        bot.send_message(user_id, f"✅ Holatingiz saqlandi: {message.text}")
+def save_status(message):
+    if message.from_user.id in TALABALAR:
+        yoqlama_bazasi[message.from_user.id] = message.text
+        bot.send_message(message.from_user.id, "✅ Saqlandi!")
 
 @bot.message_handler(func=lambda message: message.text == "📊 Bugungi hisobot")
-def hisobot_berish(message):
+def send_report(message):
     if message.from_user.id == ADMIN_ID:
-        report = "<b>📊 FT202A Guruhi Yo'qlamasi:</b>\n\n"
-        
-        # Talabalar ro'yxati bo'yicha hisobot tuzish
-        for talaba_id, ism in TALABALAR.items():
-            holat = yoqlama_bazasi.get(talaba_id, "❔ Belgilamadi")
-            report += f"👤 {ism}: <b>{holat}</b>\n"
-            
-        bot.send_message(ADMIN_ID, report, parse_mode='HTML')
+        report = "📊 **Yo'qlama:**\n\n"
+        for tid, ism in TALABALAR.items():
+            status = yoqlama_bazasi.get(tid, "Belgilamadi")
+            report += f"{ism}: {status}\n"
+        bot.send_message(ADMIN_ID, report)
 
 if __name__ == '__main__':
-    print("Bot muvaffaqiyatli ishga tushdi...")
+    # Soxta serverni alohida oqimda ishga tushiramiz
+    t = Thread(target=run)
+    t.start()
     bot.infinity_polling()
