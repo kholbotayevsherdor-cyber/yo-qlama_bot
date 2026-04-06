@@ -1,0 +1,77 @@
+import telebot
+from telebot.types import ReplyKeyboardMarkup, KeyboardButton
+
+# BotFather'dan olingan tokeningizni bu yerga qo'ying
+TOKEN = '8769170916:AAGFbaBITvPCHzb3b71UAZJf0QsTniwqzBU'
+bot = telebot.TeleBot(TOKEN)
+
+# Sizning Telegram ID raqamingiz (Ega/Admin)
+ADMIN_ID = 6958856545  
+
+# FT202A guruhidagi 14 ta talaba ro'yxati
+TALABALAR = {
+    6958856545: "Xolbo'tayev Sherdor",
+    5419668423: "Begimqulov Birodar",
+    1668924733: "Abdujalilova Havasxon",
+    7229151486: "Abdullayeva Nodirabegim",
+    850097948: "Soipova Diyora",
+    5659126133: "Zoyidjonova Mubinabonu",
+    7653980018: "Quronboyeva Mashhura",
+    6813785129: "Ruxullayeva Salima",
+    8381649603: "Solixjonova Dildora",
+    5985215529: "Xotamova Mubinabonu",
+    6499764671: "Mirzaliyeva Sevinch",
+    5844561442: "Nasriddinova Sitora",
+    786826960: "Jumatova Nigina",
+    1729555343: "Muhammadjonova Shaxnoza"
+}
+
+# Kunlik yo'qlamani saqlash uchun lug'at
+yoqlama_bazasi = {}
+
+@bot.message_handler(commands=['start'])
+def start_command(message):
+    user_id = message.from_user.id
+    
+    # 1. ADMIN UCHUN (EGA)
+    if user_id == ADMIN_ID:
+        markup = ReplyKeyboardMarkup(resize_keyboard=True)
+        markup.add(KeyboardButton("📊 Bugungi hisobot"))
+        # Admin ham talaba bo'lgani uchun yo'qlama tugmalarini ham qo'shamiz
+        markup.add(KeyboardButton("🏃 Yo'ldaman"), KeyboardButton("🎓 Universitetdaman"))
+        markup.add(KeyboardButton("❌ Darsga bormayman"))
+        bot.send_message(user_id, "Xush kelibsiz, Sherdor! Bot nazorati sizda.", reply_markup=markup)
+        
+    # 2. RO'YXATDAGI TALABALAR UCHUN
+    elif user_id in TALABALAR:
+        markup = ReplyKeyboardMarkup(resize_keyboard=True)
+        markup.add(KeyboardButton("🏃 Yo'ldaman"), KeyboardButton("🎓 Universitetdaman"))
+        markup.add(KeyboardButton("❌ Darsga bormayman"))
+        bot.send_message(user_id, f"Salom {TALABALAR[user_id]}! Bugungi holatingizni belgilang:", reply_markup=markup)
+        
+    # 3. BEGONA FOYDALANUVCHILAR UCHUN
+    else:
+        bot.send_message(user_id, "Kechirasiz, siz ushbu guruh ro'yxatida yo'qsiz.")
+
+@bot.message_handler(func=lambda message: message.text in ["🏃 Yo'ldaman", "🎓 Universitetdaman", "❌ Darsga bormayman"])
+def holatni_qabul_qilish(message):
+    user_id = message.from_user.id
+    if user_id in TALABALAR:
+        yoqlama_bazasi[user_id] = message.text
+        bot.send_message(user_id, f"✅ Holatingiz saqlandi: {message.text}")
+
+@bot.message_handler(func=lambda message: message.text == "📊 Bugungi hisobot")
+def hisobot_berish(message):
+    if message.from_user.id == ADMIN_ID:
+        report = "<b>📊 FT202A Guruhi Yo'qlamasi:</b>\n\n"
+        
+        # Talabalar ro'yxati bo'yicha hisobot tuzish
+        for talaba_id, ism in TALABALAR.items():
+            holat = yoqlama_bazasi.get(talaba_id, "❔ Belgilamadi")
+            report += f"👤 {ism}: <b>{holat}</b>\n"
+            
+        bot.send_message(ADMIN_ID, report, parse_mode='HTML')
+
+if __name__ == '__main__':
+    print("Bot muvaffaqiyatli ishga tushdi...")
+    bot.infinity_polling()
